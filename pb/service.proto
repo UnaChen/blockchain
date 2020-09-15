@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package pb;
+
+import "google/api/annotations.proto";
+
+service Node {
+    rpc TxAdd(TxAddRequest) returns(TxAddResponse) {
+        option (google.api.http) = {
+            post: "/tx/add"
+            body: "*"
+    };  
+    }
+   
+    rpc BalancesList(BalancesListRequest) returns(BalancesListResponse) {
+        option (google.api.http) = {
+            get: "/balances/list"
+    };  
+    }
+
+    rpc NodeStatus(NodeStatusRequest) returns(NodeStatusResponse) {
+        option (google.api.http) = {
+            get: "/node/status"
+    };  
+    }
+}
+
+message TxAddRequest {
+    string from = 2;
+    string to = 3;
+    string value = 4;
+}
+
+message TxAddResponse {
+    string status = 1;
+}
+
+message BalancesListRequest {
+}
+
+message BalancesListResponse {
+    string hash = 1;
+    map<string, int64> balances = 2;
+}
+
+message tx {
+    string hash = 1;
+    string from = 2;
+    string to = 3;
+    string value = 4;
+}
+
+message NodeStatusRequest {
+}
+
+message NodeStatusResponse {
+    string block_hash = 1;
+    int64 block_number = 2;
+    repeated tx pending_txs = 3;
+}
