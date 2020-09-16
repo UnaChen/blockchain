@@ -5,15 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type TX struct {
-	Hash  string         `json:"hash"`
-	From  common.Address `json:"from"`
-	To    common.Address `json:"to"`
-	Value uint           `json:"value"`
+	Hash  string `json:"hash"`
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Value uint   `json:"value"`
 
 	Nonce     uint   `json:"nonce"`
 	Timestamp int64  `json:"timestamp"`

@@ -1,21 +1,29 @@
 package main
 
 import (
-	"blockchain/node"
-	"context"
-	"flag"
+	"fmt"
+	"os"
 
-	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 func main() {
-	port := flag.Int("p", 5566, "grpc sever port")
-	flag.Parse()
-
-	node, err := node.NewNode(*port)
-	if err != nil {
-		logrus.Fatalf("fail to create node: %s", err)
+	var cmd = &cobra.Command{
+		Use:   "node",
+		Short: "The Blockchain CLI",
+		Run: func(cmd *cobra.Command, args []string) {
+		},
 	}
 
-	node.Run(context.Background())
+	cmd.AddCommand(runCmd())
+	cmd.AddCommand(addTxCmd())
+	cmd.AddCommand(listCmd())
+	cmd.AddCommand(nodeStatusCmd())
+
+	err := cmd.Execute()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 }

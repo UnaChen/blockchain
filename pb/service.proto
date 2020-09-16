@@ -46,8 +46,9 @@ message BalanceListRequest {
 }
 
 message BalanceListResponse {
-    string hash = 1;
-    map<string, uint64> balances = 2;
+    // string hash = 1;
+    // map<string, uint64> balances = 2;
+    string output = 1;
 }
 
 message BlockHeader {
@@ -86,7 +87,8 @@ message NodeStatusRequest {
 }
 
 message NodeStatusResponse {
-    uint64 block_height = 1;
-    string block_latest_hash = 2;
-    repeated tx pending_txs = 3;
+    // uint64 block_height = 1;
+    // string block_latest_hash = 2;
+    // repeated tx pending_txs = 3;
+   string output= 1;
 }

@@ -10,20 +10,19 @@ import (
 	"net"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
 type Node struct {
-	port       int
+	port       uint
 	state      *db.State
-	pendingTXs map[string]*db.TX
+	pendingTXs map[string]db.TX
 	*miner.Miner
 }
 
-func NewNode(port int) (*Node, error) {
+func New(port uint) (*Node, error) {
 
 	gensisBlock, err := db.NewGensisBlock()
 	if err != nil {
@@ -33,7 +32,7 @@ func NewNode(port int) (*Node, error) {
 	return &Node{
 		port:       port,
 		state:      db.NewState(*gensisBlock),
-		pendingTXs: make(map[string]*db.TX),
+		pendingTXs: make(map[string]db.TX),
 		Miner:      &miner.Miner{},
 	}, nil
 
@@ -67,20 +66,18 @@ func (n *Node) TxAdd(ctx context.Context, req *pb.TxAddRequest) (*pb.TxAddRespon
 		return nil, fmt.Errorf("from/to is empty")
 	}
 
-	from := common.HexToAddress(req.From)
-
 	tx := &db.TX{
-		From:  from,
-		To:    common.HexToAddress(req.To),
+		From:  req.From,
+		To:    req.To,
 		Value: uint(req.Value),
-		Nonce: n.state.Account2Nonce[from] + 1,
+		Nonce: n.state.Account2Nonce[req.From] + 1,
 	}
 
 	if err := db.NewTX(tx); err != nil {
 		return nil, err
 	}
 
-	n.pendingTXs[tx.Hash] = tx
+	n.pendingTXs[tx.Hash] = *tx
 
 	msg, _ := json.Marshal(tx)
 
@@ -93,13 +90,14 @@ func (n *Node) TxAdd(ctx context.Context, req *pb.TxAddRequest) (*pb.TxAddRespon
 func (n *Node) BalanceList(ctx context.Context, request *pb.BalanceListRequest) (*pb.BalanceListResponse, error) {
 	balances := n.state.GetBalances()
 
-	output := map[string]uint64{}
-	for a, v := range balances {
-		output[a.String()] = uint64(v)
-	}
+	// output := map[string]uint64{}
+	// for a, v := range balances {
+	// 	output[a.String()] = uint64(v)
+	// }
 
+	output, _ := json.Marshal(balances)
 	return &pb.BalanceListResponse{
-		Balances: output,
+		Output: string(output),
 	}, nil
 }
 
@@ -117,19 +115,31 @@ func (n *Node) BlockList(ctx context.Context, request *pb.BlockListRequest) (*pb
 }
 
 func (n *Node) NodeStatus(ctx context.Context, request *pb.NodeStatusRequest) (*pb.NodeStatusResponse, error) {
-	txs := n.pendingTXs
-	data, _ := json.Marshal(txs)
+	// txs := n.pendingTXs
+	// data, _ := json.Marshal(txs)
 
-	resp := &pb.NodeStatusResponse{}
-	err := json.Unmarshal(data, &resp.PendingTxs)
-	if err != nil {
-		return nil, err
-	}
+	// resp := &pb.NodeStatusResponse{}
+	// err := json.Unmarshal(data, &resp.PendingTxs)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	latestBlockerHeader := n.state.LatestBlockHeader
-	resp.BlockHeight = latestBlockerHeader.Number
-	resp.BlockLatestHash = string(latestBlockerHeader.Hash[:])
+	// resp.BlockHeight = latestBlockerHeader.Number
+	// resp.BlockLatestHash = string(latestBlockerHeader.Hash[:])
+	type resp struct {
+		BlockHeight     uint64
+		BlockLatestHash string
+		PendingTx       map[string]db.TX
+	}
 
-	return resp, nil
+	output, _ := json.Marshal(&resp{
+		BlockHeight:     latestBlockerHeader.Number,
+		BlockLatestHash: string(latestBlockerHeader.Hash[:]),
+		PendingTx:       n.pendingTXs,
+	})
+	return &pb.NodeStatusResponse{
+		Output: string(output),
+	}, nil
 }
 
 func (n *Node) mine(ctx context.Context) {
@@ -163,7 +173,7 @@ func (n *Node) minePendingTXs(ctx context.Context) error {
 
 	for hash, tx := range n.pendingTXs {
 		pendingBlock.Header.TXs = append(pendingBlock.Header.TXs, hash)
-		pendingBlock.TXs = append(pendingBlock.TXs, *tx)
+		pendingBlock.TXs = append(pendingBlock.TXs, tx)
 	}
 
 	err := db.NewBlock(pendingBlock)

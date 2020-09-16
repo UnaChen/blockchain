@@ -4,18 +4,16 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const DefaultAccountCoin = 100
 
 type State struct {
 	LatestBlockHeader BlockHeader
-	Account2Nonce     map[common.Address]uint
+	Account2Nonce     map[string]uint
 
 	blocks   []Block
-	balances map[common.Address]uint
+	balances map[string]uint
 }
 
 func NewState(gensis Block) *State {
@@ -23,8 +21,8 @@ func NewState(gensis Block) *State {
 		LatestBlockHeader: gensis.Header,
 
 		blocks:        []Block{gensis},
-		balances:      make(map[common.Address]uint),
-		Account2Nonce: make(map[common.Address]uint),
+		balances:      make(map[string]uint),
+		Account2Nonce: make(map[string]uint),
 	}
 
 }
@@ -91,11 +89,11 @@ func (s *State) addTX(tx TX) error {
 
 	expectedNonce := s.Account2Nonce[tx.From] + 1
 	if tx.Nonce != expectedNonce {
-		return fmt.Errorf("wrong TX. Sender '%s' next nonce must be '%d', not '%d'", tx.From.String(), expectedNonce, tx.Nonce)
+		return fmt.Errorf("wrong TX. Sender '%s' next nonce must be '%d', not '%d'", tx.From, expectedNonce, tx.Nonce)
 	}
 
 	if tx.Value > s.balances[tx.From] {
-		return fmt.Errorf("wrong TX. Sender '%s' balance is %d coins. TX cost is %d coins", tx.From.String(), s.balances[tx.From], tx.Value)
+		return fmt.Errorf("wrong TX. Sender '%s' balance is %d coins. TX cost is %d coins", tx.From, s.balances[tx.From], tx.Value)
 	}
 
 	s.balances[tx.From] -= tx.Value
@@ -105,7 +103,7 @@ func (s *State) addTX(tx TX) error {
 	return nil
 }
 
-func (s *State) GetBalances() map[common.Address]uint {
+func (s *State) GetBalances() map[string]uint {
 	return s.balances
 }
 
