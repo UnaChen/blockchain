@@ -3,13 +3,14 @@ package db
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
 
 type TX struct {
-	Hash  Hash           `json:"hash"`
+	Hash  string         `json:"hash"`
 	From  common.Address `json:"from"`
 	To    common.Address `json:"to"`
 	Value uint           `json:"value"`
@@ -26,20 +27,16 @@ func NewTX(tx *TX) error {
 	if err != nil {
 		return err
 	}
-	tx.Hash = hash
+	tx.Hash = fmt.Sprintf("%x", hash)
 
 	return nil
 }
 
-func (t TX) sha256() (Hash, error) {
-	if (t.Hash != Hash{}) {
-		return t.Hash, nil
-	}
+func (t TX) sha256() ([sha256.Size]byte, error) {
 
 	txJson, err := json.Marshal(t)
 	if err != nil {
-		return Hash{}, err
+		return [sha256.Size]byte{}, err
 	}
-
 	return sha256.Sum256(txJson), nil
 }

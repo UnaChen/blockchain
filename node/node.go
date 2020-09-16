@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -17,7 +19,7 @@ import (
 type Node struct {
 	port       int
 	state      *db.State
-	pendingTXs []db.TX
+	pendingTXs map[string]*db.TX
 	*miner.Miner
 }
 
@@ -29,9 +31,10 @@ func NewNode(port int) (*Node, error) {
 	}
 
 	return &Node{
-		port:  port,
-		state: db.NewState(*gensisBlock),
-		Miner: &miner.Miner{},
+		port:       port,
+		state:      db.NewState(*gensisBlock),
+		pendingTXs: make(map[string]*db.TX),
+		Miner:      &miner.Miner{},
 	}, nil
 
 }
@@ -53,7 +56,7 @@ func (n *Node) Run(ctx context.Context) error {
 
 	logrus.Infof("node grpc start on '%s' ...", listen.Addr())
 
-	// go n.mine(ctx)
+	go n.mine(ctx)
 
 	return s.Serve(listen)
 }
@@ -70,14 +73,14 @@ func (n *Node) TxAdd(ctx context.Context, req *pb.TxAddRequest) (*pb.TxAddRespon
 		From:  from,
 		To:    common.HexToAddress(req.To),
 		Value: uint(req.Value),
-		Nonce: n.state.GetNextAccountNonce(from),
+		Nonce: n.state.Account2Nonce[from] + 1,
 	}
 
 	if err := db.NewTX(tx); err != nil {
 		return nil, err
 	}
 
-	n.pendingTXs = append(n.pendingTXs, *tx)
+	n.pendingTXs[tx.Hash] = tx
 
 	msg, _ := json.Marshal(tx)
 
@@ -101,34 +104,97 @@ func (n *Node) BalanceList(ctx context.Context, request *pb.BalanceListRequest) 
 }
 
 func (n *Node) BlockList(ctx context.Context, request *pb.BlockListRequest) (*pb.BlockListResponse, error) {
+	blocks := n.state.GetBlocks()
+	data, _ := json.Marshal(blocks)
 
-	// output := []*pb.Blcok{}
-	// for _, b := range n.state.GetBlocks() {
-	// 	output = append(output, &pb.Blcok{
-	// 	Header:pb.BlockHeader{
-	// 		Hash :
-	// ParentHash string   `protobuf:"bytes,2,opt,name=parent_hash,json=parentHash,proto3" json:"parent_hash,omitempty"`
-	// Number     int64    `protobuf:"varint,3,opt,name=number,proto3" json:"number,omitempty"`
-	// TxHashes   []string `protobuf:"bytes,4,rep,name=tx_hashes,json=txHashes,proto3" json:"tx_hashes,omitempty"`
-	// Nonce      int64    `protobuf:"varint,5,opt,name=nonce,proto3" json:"nonce,omitempty"`
-	// Timestamp  int64    `protobuf:"varint,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// 	}
-	// Hash :b.hash,
+	resp := &pb.BlockListResponse{}
+	err := json.Unmarshal(data, &resp.Blcoks)
+	if err != nil {
+		return nil, err
+	}
 
-	// ParentHash string   `protobuf:"bytes,2,opt,name=parent_hash,json=parentHash,proto3" json:"parent_hash,omitempty"`
-	// Number     int64    `protobuf:"varint,3,opt,name=number,proto3" json:"number,omitempty"`
-	// TxHashes   []string `protobuf:"bytes,4,rep,name=tx_hashes,json=txHashes,proto3" json:"tx_hashes,omitempty"`
-	// Nonce      int64    `protobuf:"varint,5,opt,name=nonce,proto3" json:"nonce,omitempty"`
-	// // Timestamp  int64    `protobuf:"varint,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// 	})
-	// }
-
-	// return &pb.BlockListResponse{
-	// 	Blcoks: output,
-	// }, nil
-	return nil, nil
+	return resp, nil
 }
 
-func (s *Node) NodeStatus(ctx context.Context, request *pb.NodeStatusRequest) (*pb.NodeStatusResponse, error) {
-	return &pb.NodeStatusResponse{}, nil
+func (n *Node) NodeStatus(ctx context.Context, request *pb.NodeStatusRequest) (*pb.NodeStatusResponse, error) {
+	txs := n.pendingTXs
+	data, _ := json.Marshal(txs)
+
+	resp := &pb.NodeStatusResponse{}
+	err := json.Unmarshal(data, &resp.PendingTxs)
+	if err != nil {
+		return nil, err
+	}
+	latestBlockerHeader := n.state.LatestBlockHeader
+	resp.BlockHeight = latestBlockerHeader.Number
+	resp.BlockLatestHash = string(latestBlockerHeader.Hash[:])
+
+	return resp, nil
+}
+
+func (n *Node) mine(ctx context.Context) {
+
+	ticker := time.NewTicker(time.Second * miner.IntervalSeconds)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if len(n.pendingTXs) > 0 {
+
+				err := n.minePendingTXs(ctx)
+				if err != nil {
+					logrus.Errorln(err)
+				}
+
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+func (n *Node) minePendingTXs(ctx context.Context) error {
+	pendingBlock := &db.Block{
+		Header: db.BlockHeader{
+			Parent: n.state.LatestBlockHeader.Hash,
+			Number: n.state.LatestBlockHeader.Number + 1,
+		},
+	}
+
+	for hash, tx := range n.pendingTXs {
+		pendingBlock.Header.TXs = append(pendingBlock.Header.TXs, hash)
+		pendingBlock.TXs = append(pendingBlock.TXs, *tx)
+	}
+
+	err := db.NewBlock(pendingBlock)
+	if err != nil {
+		return errors.Wrap(err, "fail to create a pending block")
+	}
+
+	err = n.Mine(ctx, pendingBlock)
+	if err != nil {
+		return errors.Wrap(err, "fail to mine a block")
+	}
+
+	err = n.state.AddBlock(*pendingBlock)
+	if err != nil {
+		n.removeMinedPendingTXs(*pendingBlock)
+		return errors.Wrap(err, "fail to apply a new block")
+	}
+
+	n.removeMinedPendingTXs(*pendingBlock)
+	return nil
+}
+
+func (n *Node) removeMinedPendingTXs(block db.Block) {
+	if len(block.TXs) > 0 && len(n.pendingTXs) > 0 {
+		fmt.Println("Updating in-memory Pending TXs Pool")
+	}
+
+	for _, hash := range block.Header.TXs {
+		if _, exists := n.pendingTXs[hash]; exists {
+			fmt.Printf("\t-archiving mined TX: %s\n", hash)
+			delete(n.pendingTXs, hash)
+		}
+	}
 }

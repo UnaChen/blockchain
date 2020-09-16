@@ -3,75 +3,50 @@ package db
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const BlockReward = 100
 
-// func (h Hash) MarshalText() ([]byte, error) {
-// 	return []byte(h.Hex()), nil
-// }
-
-// func (h *Hash) UnmarshalText(data []byte) error {
-// 	_, err := hex.Decode(h[:], data)
-// 	return err
-// }
-
-// func (h Hash) Hex() string {
-// 	return hex.EncodeToString(h[:])
-// }
-
-// func (h Hash) IsEmpty() bool {
-// 	emptyHash := Hash{}
-
-// 	return bytes.Equal(emptyHash[:], h[:])
-// }
-
 type Block struct {
 	Header BlockHeader `json:"header"`
-	TXs    []TX        `json:"transcations"`
+	TXs    []TX        `json:"txs"`
 }
 
 type BlockHeader struct {
-	Hash   Hash   `json:"block_hash"`
-	Parent Hash   `json:"parent_hash"`
-	Number uint64 `json:"height"`
-	TXs    []Hash `json:"txs_hash"`
+	Hash   string   `json:"hash"`
+	Parent string   `json:"parent_hash"`
+	Number uint64   `json:"height"`
+	TXs    []string `json:"tx_hashes"`
 
-	Miner     common.Address `json:"miner"`
-	Nonce     uint64         `json:"nonce"`
-	Timestamp int64          `json:"timestamp"`
+	Nonce     uint64 `json:"nonce"`
+	Timestamp uint64 `json:"timestamp"`
 }
 
 func NewBlock(block *Block) error {
-	block.Header.Timestamp = time.Now().Unix()
+	block.Header.Timestamp = uint64(time.Now().Unix())
 
 	hash, err := block.sha256()
 	if err != nil {
 		return err
 	}
-	block.Header.Hash = hash
+	block.Header.Hash = fmt.Sprintf("%x", hash)
 
 	return nil
 }
 
-func (b *Block) sha256() (Hash, error) {
-	if (b.Header.Hash != Hash{}) {
-		return b.Header.Hash, nil
-	}
+func (b *Block) sha256() ([sha256.Size]byte, error) {
 
 	data, err := json.Marshal(b)
 	if err != nil {
-		return Hash{}, err
+		return [sha256.Size]byte{}, err
 	}
-
 	return sha256.Sum256(data), nil
 }
 
 func (b *Block) IsValid() bool {
-	if (b.Header.Hash == Hash{}) {
+	if b.Header.Hash == "" {
 		return false
 	}
 	return true
@@ -93,7 +68,7 @@ func NewGensisBlock() (*Block, error) {
 	block := &Block{
 		Header: BlockHeader{
 			Number: 0,
-			TXs:    []Hash{coinbase.Hash},
+			TXs:    []string{coinbase.Hash},
 		},
 		TXs: []TX{*coinbase},
 	}

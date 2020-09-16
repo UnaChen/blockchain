@@ -53,7 +53,7 @@ message BalanceListResponse {
 message BlockHeader {
     string hash = 1;
     string parent_hash = 2;
-    int64 number = 3;
+    int64 height = 3;
     repeated string tx_hashes = 4;
     int64 nonce = 5;
     int64 timestamp =6;
@@ -86,7 +86,7 @@ message NodeStatusRequest {
 }
 
 message NodeStatusResponse {
-    string block_hash = 1;
-    int64 block_number = 2;
+    uint64 block_height = 1;
+    string block_latest_hash = 2;
     repeated tx pending_txs = 3;
 }

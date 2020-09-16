@@ -12,10 +12,10 @@ const DefaultAccountCoin = 100
 
 type State struct {
 	LatestBlockHeader BlockHeader
+	Account2Nonce     map[common.Address]uint
 
-	blocks        []Block
-	balances      map[common.Address]uint
-	account2Nonce map[common.Address]uint
+	blocks   []Block
+	balances map[common.Address]uint
 }
 
 func NewState(gensis Block) *State {
@@ -24,7 +24,7 @@ func NewState(gensis Block) *State {
 
 		blocks:        []Block{gensis},
 		balances:      make(map[common.Address]uint),
-		account2Nonce: make(map[common.Address]uint),
+		Account2Nonce: make(map[common.Address]uint),
 	}
 
 }
@@ -43,18 +43,10 @@ func (s *State) AddBlock(b Block) error {
 	s.LatestBlockHeader = pendingState.LatestBlockHeader
 
 	s.balances = pendingState.balances
-	s.account2Nonce = pendingState.account2Nonce
-	s.blocks = append(s.blocks)
+	s.Account2Nonce = pendingState.Account2Nonce
+	s.blocks = append(s.blocks, b)
 
 	return nil
-}
-
-func (s *State) NextBlockNumber() uint64 {
-	return s.LatestBlockHeader.Number + 1
-}
-
-func (s *State) GetNextAccountNonce(account common.Address) uint {
-	return s.account2Nonce[account] + 1
 }
 
 func (s *State) isValidBlock(b Block) (bool, error) {
@@ -97,7 +89,7 @@ func (s *State) addTX(tx TX) error {
 		s.balances[tx.To] = DefaultAccountCoin
 	}
 
-	expectedNonce := s.GetNextAccountNonce(tx.From)
+	expectedNonce := s.Account2Nonce[tx.From] + 1
 	if tx.Nonce != expectedNonce {
 		return fmt.Errorf("wrong TX. Sender '%s' next nonce must be '%d', not '%d'", tx.From.String(), expectedNonce, tx.Nonce)
 	}
@@ -109,7 +101,7 @@ func (s *State) addTX(tx TX) error {
 	s.balances[tx.From] -= tx.Value
 	s.balances[tx.To] += tx.Value
 
-	s.account2Nonce[tx.From] = tx.Nonce
+	s.Account2Nonce[tx.From] = tx.Nonce
 	return nil
 }
 
