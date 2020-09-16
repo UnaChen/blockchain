@@ -8,36 +8,34 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// func NewAccount(value string) common.Address {
-// 	return common.HexToAddress(value)
-// }
+type TX struct {
+	Hash  Hash           `json:"hash"`
+	From  common.Address `json:"from"`
+	To    common.Address `json:"to"`
+	Value uint           `json:"value"`
 
-type Tx struct {
-	Hash      Hash           `json:"hash"`
-	From      common.Address `json:"from"`
-	To        common.Address `json:"to"`
-	Value     uint           `json:"value"`
-	Timestamp int64          `json:"timestamp"`
+	Nonce     uint   `json:"nonce"`
+	Timestamp int64  `json:"timestamp"`
+	Data      string `json:"data"`
 }
 
-func NewTx(from, to common.Address, value uint) (*Tx, error) {
-	tx := &Tx{
-		From:      from,
-		To:        to,
-		Value:     value,
-		Timestamp: time.Now().Unix(),
-	}
+func NewTX(tx *TX) error {
+	tx.Timestamp = time.Now().Unix()
 
 	hash, err := tx.sha256()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	tx.Hash = hash
 
-	return tx, nil
+	return nil
 }
 
-func (t Tx) sha256() (Hash, error) {
+func (t TX) sha256() (Hash, error) {
+	if (t.Hash != Hash{}) {
+		return t.Hash, nil
+	}
+
 	txJson, err := json.Marshal(t)
 	if err != nil {
 		return Hash{}, err

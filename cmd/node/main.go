@@ -23,17 +23,6 @@ func main() {
 		panic(err)
 	}
 	defer listen.Close()
-	defer func() {
-		fmt.Println("defer")
-	}()
-
-	i := 0
-	for {
-		i++
-		if i == 100 {
-			return
-		}
-	}
 
 	logrus.Infof("node grpc start on '%s' ...", listen.Addr())
 

@@ -3,43 +3,132 @@ package node
 import (
 	"blockchain/db"
 	"blockchain/miner"
+	"blockchain/pb"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 
-	"github.com/web3coach/the-blockchain-bar/database"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 type Node struct {
+	port       int
 	state      *db.State
-	pendingTXs []db.Tx
+	pendingTXs []db.TX
 	*miner.Miner
 }
 
-func (n *Node) Run(ctx context.Context, isSSLDisabled bool, sslEmail string) error {
-	fmt.Println(fmt.Sprintf("Listening on: %s:%d", n.info.IP, n.info.Port))
+func NewNode(port int) (*Node, error) {
 
-	state, err := database.NewStateFromDisk(n.dataDir)
+	gensisBlock, err := db.NewGensisBlock()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		port:  port,
+		state: db.NewState(*gensisBlock),
+		Miner: &miner.Miner{},
+	}, nil
+
+}
+
+func (n *Node) Run(ctx context.Context) error {
+
+	fmt.Println("Blockchain state:")
+	fmt.Printf("	- height: %d\n", n.state.LatestBlockHeader.Number)
+	fmt.Printf("	- hash: %x\n", n.state.LatestBlockHeader.Hash)
+
+	s := grpc.NewServer()
+	pb.RegisterNodeServer(s, n)
+
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", n.port))
 	if err != nil {
 		return err
 	}
-	defer state.Close()
+	defer listen.Close()
 
-	n.state = state
+	logrus.Infof("node grpc start on '%s' ...", listen.Addr())
 
-	fmt.Println("Blockchain state:")
-	fmt.Printf("	- height: %d\n", n.state.LatestBlock().Header.Number)
-	fmt.Printf("	- hash: %s\n", n.state.LatestBlockHash().Hex())
+	// go n.mine(ctx)
 
-	go n.sync(ctx)
-	go n.mine(ctx)
-
-	return n.serveHttp(ctx, isSSLDisabled, sslEmail)
+	return s.Serve(listen)
 }
 
-// run
-// go run mine
-// mine
+func (n *Node) TxAdd(ctx context.Context, req *pb.TxAddRequest) (*pb.TxAddResponse, error) {
 
-func (n *Node) AddPendingTX(tx database.Tx) {
-	n.pendingTXs = append(n.pendingTXs)
+	if req.From == "" || req.To == "" {
+		return nil, fmt.Errorf("from/to is empty")
+	}
+
+	from := common.HexToAddress(req.From)
+
+	tx := &db.TX{
+		From:  from,
+		To:    common.HexToAddress(req.To),
+		Value: uint(req.Value),
+		Nonce: n.state.GetNextAccountNonce(from),
+	}
+
+	if err := db.NewTX(tx); err != nil {
+		return nil, err
+	}
+
+	n.pendingTXs = append(n.pendingTXs, *tx)
+
+	msg, _ := json.Marshal(tx)
+
+	return &pb.TxAddResponse{
+		Status:  "success",
+		Message: string(msg),
+	}, nil
+}
+
+func (n *Node) BalanceList(ctx context.Context, request *pb.BalanceListRequest) (*pb.BalanceListResponse, error) {
+	balances := n.state.GetBalances()
+
+	output := map[string]uint64{}
+	for a, v := range balances {
+		output[a.String()] = uint64(v)
+	}
+
+	return &pb.BalanceListResponse{
+		Balances: output,
+	}, nil
+}
+
+func (n *Node) BlockList(ctx context.Context, request *pb.BlockListRequest) (*pb.BlockListResponse, error) {
+
+	// output := []*pb.Blcok{}
+	// for _, b := range n.state.GetBlocks() {
+	// 	output = append(output, &pb.Blcok{
+	// 	Header:pb.BlockHeader{
+	// 		Hash :
+	// ParentHash string   `protobuf:"bytes,2,opt,name=parent_hash,json=parentHash,proto3" json:"parent_hash,omitempty"`
+	// Number     int64    `protobuf:"varint,3,opt,name=number,proto3" json:"number,omitempty"`
+	// TxHashes   []string `protobuf:"bytes,4,rep,name=tx_hashes,json=txHashes,proto3" json:"tx_hashes,omitempty"`
+	// Nonce      int64    `protobuf:"varint,5,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Timestamp  int64    `protobuf:"varint,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// 	}
+	// Hash :b.hash,
+
+	// ParentHash string   `protobuf:"bytes,2,opt,name=parent_hash,json=parentHash,proto3" json:"parent_hash,omitempty"`
+	// Number     int64    `protobuf:"varint,3,opt,name=number,proto3" json:"number,omitempty"`
+	// TxHashes   []string `protobuf:"bytes,4,rep,name=tx_hashes,json=txHashes,proto3" json:"tx_hashes,omitempty"`
+	// Nonce      int64    `protobuf:"varint,5,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// // Timestamp  int64    `protobuf:"varint,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// 	})
+	// }
+
+	// return &pb.BlockListResponse{
+	// 	Blcoks: output,
+	// }, nil
+	return nil, nil
+}
+
+func (s *Node) NodeStatus(ctx context.Context, request *pb.NodeStatusRequest) (*pb.NodeStatusResponse, error) {
+	return &pb.NodeStatusResponse{}, nil
 }

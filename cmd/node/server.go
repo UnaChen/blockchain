@@ -22,8 +22,8 @@ type server struct {
 // 	s.
 // }
 
-func (s *server) TxAdd(ctx context.Context, request *pb.TxAddRequest) (*pb.TxAddResponse, error) {
-	return &pb.TxAddResponse{}, nil
+func (s *server) TXAdd(ctx context.Context, request *pb.TXAddRequest) (*pb.TXAddResponse, error) {
+	return &pb.TXAddResponse{}, nil
 }
 
 func (s *server) BalancesList(ctx context.Context, request *pb.BalancesListRequest) (*pb.BalancesListResponse, error) {

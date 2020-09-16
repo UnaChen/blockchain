@@ -4,4 +4,4 @@ import (
 	"crypto/sha256"
 )
 
-type Hash [sha256.Size]byte
+type Hash = [sha256.Size]byte
