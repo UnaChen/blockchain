@@ -12,9 +12,15 @@ service Node {
     };  
     }
    
-    rpc BalancesList(BalancesListRequest) returns(BalancesListResponse) {
+    rpc BalanceList(BalanceListRequest) returns(BalanceListResponse) {
         option (google.api.http) = {
-            get: "/balances/list"
+            get: "/balance/list"
+    };  
+    }
+
+    rpc BlockList(BlockListRequest) returns(BlockListResponse) {
+        option (google.api.http) = {
+            get: "/block/list"
     };  
     }
 
@@ -28,26 +34,52 @@ service Node {
 message TxAddRequest {
     string from = 2;
     string to = 3;
-    string value = 4;
+    uint64 value = 4;
 }
 
 message TxAddResponse {
     string status = 1;
+    string message = 2;
 }
 
-message BalancesListRequest {
+message BalanceListRequest {
 }
 
-message BalancesListResponse {
+message BalanceListResponse {
     string hash = 1;
-    map<string, int64> balances = 2;
+    map<string, uint64> balances = 2;
+}
+
+message BlockHeader {
+    string hash = 1;
+    string parent_hash = 2;
+    int64 number = 3;
+    repeated string tx_hashes = 4;
+    int64 nonce = 5;
+    int64 timestamp =6;
+}
+
+message Blcok {
+    BlockHeader header = 1;
+    repeated tx txs = 2;
+}
+
+message BlockListRequest {
+}
+
+message BlockListResponse {
+    int64 height = 3;
+    repeated Blcok blcoks = 2;
 }
 
 message tx {
     string hash = 1;
     string from = 2;
     string to = 3;
-    string value = 4;
+    uint64 value = 4;
+    uint64 nonce = 5;
+    int64 timestamp = 6;
+    string data = 7;
 }
 
 message NodeStatusRequest {
