@@ -1,3 +1,57 @@
+
+Usage
+* Run node server
+```sh
+# build source code
+cd cmd/node
+go build
+
+# run node grpc server (default port: 5566)
+./node run -p ${PORT}
+```
+
+* Run node client
+```sh
+# run node grpc client related cmd (default server: "127.0.0.1:5566")
+
+# add tx (default from/to: random string)
+./node addtx -h
+./node addtx -s ${SERVER} -from ${FROM} -to ${TO} -v ${VALUE}
+
+
+# list related status 
+./node list -h
+./node status -h
+
+# more info
+./node -h
+```
+
+* (optional) Run node grpc gateway
+```sh
+# run node grpc gateway
+cd cmd/node_gateway
+go build
+./node_gateway -grpc ${SERVER} -p ${PORT}
+
+# add tx
+curl --location --request POST 'http://localhost:7788/tx/add' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+        "from": "0x71a0DF94Dd9c9390Cf5e0BD87190F111cd55C325",
+        "to": "0x0F86Cd82Ff4BA6FbB1655F44EA26b93d150E11E0",
+        "value": 100
+}'
+# list balances
+curl http://127.0.0.1:7788/balance/list
+# list blocks
+curl http://127.0.0.1:7788/block/list
+# get node status
+curl http://127.0.0.1:7788/node/status
+
+```
+
+
 Reference 
 * UTXO 
     * https://medium.com/%E4%B8%80%E5%80%8B%E5%AE%B9%E6%98%93%E5%81%A5%E5%BF%98%E7%9A%84%E5%A4%A7%E5%AD%B8%E7%94%9F/%E4%BB%80%E9%BA%BC%E6%98%AFutxo-40b62e73c84d

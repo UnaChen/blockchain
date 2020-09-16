@@ -90,7 +90,6 @@ func listCmd() *cobra.Command {
 
 	cmd.AddCommand(balanceListCmd())
 	cmd.AddCommand(blockListCmd())
-	cmd.AddCommand(nodeStatusCmd())
 
 	return cmd
 }
