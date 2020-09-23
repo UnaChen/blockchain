@@ -1,5 +1,11 @@
 
-Usage
+### Outline
+* [Usage](#usage)
+* [Basic terms](#basic-terms)
+* [FAQ](#faq)
+* [Reference](#reference)
+---
+### Usage
 * Run node server
 ```sh
 # build source code
@@ -51,8 +57,69 @@ curl http://127.0.0.1:7788/node/status
 
 ```
 
+---
+### Basic terms 
+1. 什麼是公私鑰? 公鑰私鑰運作場景是什麼? 什麼是簽名?
+    * **公鑰(Public key)**: 能被廣泛的發佈與流傳
+    * **私鑰(Private key)**: 不公開, 被妥善保管
+    * **運作場景**: 
+    運作原理是傳送方與接收方在傳送之前，先把彼此的公鑰傳給對方，當傳送方要傳送時，就用接收方的公鑰將訊息加密，接收方收到加密訊息後，再用自己的密鑰解開，這樣即使有心人拿到公鑰，只要沒拿到接收方的私鑰，也還是無法解密訊息。
+    * **數位簽章(Digital Signature)**:
+        * 由來: 假設有人在網路上找到了接收方的公鑰，假造一封有病毒的訊息，再用接收方公鑰加密傳過去，這樣接收方一打開不就傻傻中計了嗎?!
+        * 用途: **Double Confirm**了，也就是傳送方除了使用接收方的公鑰加密外，也使用自己的私鑰對該封加密訊息的Hash簽名
+</br>
+2. 對稱式與非對稱式加密有何不同?
+    * **對稱式加密**- 傳送方與接收方的加解密皆使用**同**一把密鑰
+    * **非對稱式加密**- 傳送方與接收方加解密用**不同**密鑰, 雙方皆存在一鑰匙 (公鑰＋私鑰）
+</br>
+3. 什麼是 Challenge-Response Authentication?
+    * 其中一方提出問題，另一方必須提供有效答案才能進行身份驗證 
+</br>
+4. 什麼是多簽 (Multisignature)? 比特幣的多簽地址是什麼?
+    * **多簽 Multisignature**
+        一種特定類型的數位簽章，而此類型的簽名將允許兩個以上用戶作為一組來簽署文檔。因此，多重簽名則通過多個單一簽名的組合來產生。
+    * **Creating a Multisignature Address with Bitcoin-Qt**
+        1. Gather (or generate) 3 bitcoin addresses 
+            *(RPC cmd: getnewaddress or getaccountaddress)*
+        2. Get their public keys.
+            *(RPC cmd:  validateaddress)*
+        3. Then create a 2-of-3 multisig address using addmultisigaddress; e.g.
+        ```shell
+        # addmultisigaddress returns the multisignature address. 
+        > bitcoind addmultisigaddress 2 '["1st pubkey","2nd pubkey","3rd pubkey."]'
+        ```
+        
+5. 什麼是 Hash 函數? 有什麼特性? 什麼是 Proof of Work (PoW)?
+    * **Hash Function**
+    主要是將不定長度訊息的輸入，演算成固定長度雜湊值的輸出，且所計算出來的值必須符合兩個主要條件：
+        * 由雜湊值是無法反推出原來的訊息
+        * 雜湊值必須隨明文改變而改變
+    * **Proof of Work (PoW)**
+    一種對應服務與資源濫用、或是阻斷服務攻擊的經濟對策。一般是要求使用者進行一些耗時適當的複雜運算，並且答案能被服務方快速驗算，以此耗用的時間、裝置與能源做為擔保成本，以確保服務與資源是被真正的需求所使用
+* Reference:
+    * [基礎密碼學](https://medium.com/@RiverChan/%E5%9F%BA%E7%A4%8E%E5%AF%86%E7%A2%BC%E5%AD%B8-%E5%B0%8D%E7%A8%B1%E5%BC%8F%E8%88%87%E9%9D%9E%E5%B0%8D%E7%A8%B1%E5%BC%8F%E5%8A%A0%E5%AF%86%E6%8A%80%E8%A1%93-de25fd5fa537)
+    * [Challenge–Response Authentication - Wikipedia](https://en.wikipedia.org/wiki/Challenge%E2%80%93response_authentication)
+    * [authentication](http://systw.net/note/af/sblog/more.php?id=152)
+    * [什麼是多重簽名錢包](https://academy.binance.com/zt/security/what-is-a-multisig-wallet)
+    * [區塊鏈入門系列 | 比特幣的多重簽名技術 Multisignature](https://www.itread01.com/hkpqcif.html)
+    * [Bitcoin Multisignature - Wikipedia](https://en.bitcoin.it/wiki/Multisignature)
+    * [雜湊 (Hash)](https://ithelp.ithome.com.tw/articles/10208884)
+    * [proof-of-work (PoW) - Wikipedia](https://en.wikipedia.org/wiki/Proof_of_work)
+---
+### FAQ
+1. Compare the difference between account/UTXO based models.
+| | Account (Ethereum)| UTXO (Unspent Transaction Output)|
+|---|---|
+|原理||
+|Examples|Ethereum|Bitcoin|
 
-Reference 
+2. How to ensure transaction order in an account based model?
+3. What is transaction/block?
+4. Why is setting block generation time necessary?
+5. When to update the account balance?
+
+---
+### Reference 
 * UTXO 
     * https://medium.com/%E4%B8%80%E5%80%8B%E5%AE%B9%E6%98%93%E5%81%A5%E5%BF%98%E7%9A%84%E5%A4%A7%E5%AD%B8%E7%94%9F/%E4%BB%80%E9%BA%BC%E6%98%AFutxo-40b62e73c84d
     * https://ithelp.ithome.com.tw/articles/10216976
