@@ -112,10 +112,12 @@ curl http://127.0.0.1:7788/node/status
 
 | | Account| UTXO (Unspent Transaction Output)|
 |---|---|---|
-|原理|||
-|Examples|Ethereum|Bitcoin|
+|原理|保存了世界狀態,鏈的狀態一般在區塊中以 StateRoot 和 ReceiptRoot 等形式進行共識交易只是事件本身,不包含結果,交易的共識和狀態的共識本質上可以隔離的.|交易只是代表了 UTXO 集合的變更. 每個交易消耗之前交易生成的 UTXO 然後生成新的 UTXO, 帳戶的餘額即所有屬於該地址的未花費 UTXO 集合.|
+|優點|* 擁有自身狀態<br> * 批量交易的成本較低|*交易無法被重放<br> * 無狀態的,更容易並發處理<br>|
+|缺點|* 交易之間沒有依賴性,需解決重放問題.<br>* 對於實現閃電網絡/雷電網絡，Plasma 等，用戶舉證需要更複雜的 Proof 證明機制，子鏈向主鏈進行狀態遷移需要更複雜的協議 (?!)|* 當 Input 較多時，見證腳本也會增多。而簽名本身是比較消耗 CPU 和存儲空間的
 
 2. How to ensure transaction order in an account based model?
+    * Ethereum 使用了在 Account 中增加 **nonce** 的方式，每筆交易對應一個 nonce，nonce 每次遞增。這種方式雖然意在解決重放的問題，但是同時引入了順序性問題，同時使得交易無法並行。例如在 Ethereum中，用戶發送多筆交易，如果第一筆交易打包失敗，將引起後續多筆交易都打包不成功。
 3. What is transaction/block?
 4. Why is setting block generation time necessary?
 5. When to update the account balance?
